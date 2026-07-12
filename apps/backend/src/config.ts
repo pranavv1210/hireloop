@@ -12,6 +12,10 @@ export const config = {
     process.env.DATABASE_PATH ?? '../../data/hireloop.sqlite',
   ),
   frontendOrigin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+  frontendOrigins: (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   logLevel: process.env.LOG_LEVEL ?? 'info',
   sessionSecret: process.env.SESSION_SECRET ?? 'hireloop-dev-session-secret-change-me',
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',

@@ -8,6 +8,13 @@ HireLoop is easiest to deploy as one Docker web service:
 - Backend also serves the built frontend from `apps/frontend/dist`.
 - SQLite and uploads are expected under `/data`.
 
+You can also deploy the frontend separately on Vercel and the backend on Render/Railway/Fly. In that setup:
+
+- Vercel serves the Vite frontend.
+- The backend host serves only the API and automation.
+- `VITE_API_BASE_URL` in Vercel must point to the backend URL.
+- `FRONTEND_ORIGIN` in the backend must include the Vercel URL.
+
 The included `Dockerfile` builds both apps and runs:
 
 ```bash
@@ -34,6 +41,65 @@ UPLOAD_DIR=/data/uploads
 ```
 
 Update Google Cloud OAuth authorized redirect URIs to include both production callbacks.
+
+## Vercel frontend + separate backend
+
+Use this when deploying the frontend to Vercel.
+
+### Vercel settings
+
+Import the GitHub repo in Vercel and keep the project root as the repository root. The included `vercel.json` sets:
+
+```bash
+npm install
+npm run build -w apps/frontend
+apps/frontend/dist
+```
+
+Set this Vercel environment variable:
+
+```bash
+VITE_API_BASE_URL=https://<your-backend-domain>
+```
+
+Examples:
+
+```bash
+VITE_API_BASE_URL=https://hireloop-api.onrender.com
+VITE_API_BASE_URL=https://hireloop-production.up.railway.app
+```
+
+### Backend settings
+
+Set the backend `FRONTEND_ORIGIN` to your Vercel URL:
+
+```bash
+FRONTEND_ORIGIN=https://<your-vercel-app>.vercel.app
+```
+
+For local + production together, comma-separate allowed origins:
+
+```bash
+FRONTEND_ORIGIN=http://localhost:5173,https://<your-vercel-app>.vercel.app
+```
+
+If you want Vercel preview deployments to call the backend, add those preview URLs too.
+
+### Google OAuth callbacks
+
+Google redirects to the backend, not Vercel. Use backend URLs:
+
+```text
+https://<your-backend-domain>/api/auth/google/callback
+https://<your-backend-domain>/api/email/google/callback
+```
+
+Set backend env vars to match:
+
+```bash
+GOOGLE_REDIRECT_URI=https://<your-backend-domain>/api/auth/google/callback
+GOOGLE_EMAIL_REDIRECT_URI=https://<your-backend-domain>/api/email/google/callback
+```
 
 ## Free-friendly provider notes
 

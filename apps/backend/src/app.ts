@@ -29,7 +29,19 @@ export function createApp() {
   const db = getDatabase();
 
   app.use(pinoHttp({ logger }));
-  app.use(cors({ origin: config.frontendOrigin, credentials: true }));
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin || config.frontendOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`CORS blocked origin: ${origin}`));
+      },
+      credentials: true,
+    }),
+  );
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => {
