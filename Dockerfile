@@ -1,10 +1,10 @@
 FROM mcr.microsoft.com/playwright:v1.53.2-noble AS build
 
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
-RUN npm ci
+RUN npm install --include=optional --workspaces --no-audit --no-fund
 
 COPY . .
 RUN npm run build
