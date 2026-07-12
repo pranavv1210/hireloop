@@ -54,6 +54,7 @@ type UserProfileRow = {
 type ResumeRow = {
   id: string;
   filename: string;
+  storage_path?: string;
   mime_type: string;
   file_size_bytes: number;
   is_selected: number;
@@ -325,6 +326,51 @@ export function createApiRouter(db: AppDatabase): Router {
       throw error;
     }
 
+    res.status(204).send();
+  });
+
+  router.delete('/resumes/:id', requireAuth(db), (req, res) => {
+    const user = (req as AuthenticatedRequest).user;
+    const resume = db
+      .prepare(
+        `SELECT id, storage_path, is_selected
+         FROM resumes
+         WHERE id = ? AND user_profile_id = ?`,
+      )
+      .get(req.params.id, user.id) as
+      | { id: string; storage_path: string; is_selected: number }
+      | undefined;
+
+    if (!resume) {
+      res.status(404).json({ error: 'Resume not found' });
+      return;
+    }
+
+    try {
+      db.exec('BEGIN');
+      db.prepare('DELETE FROM resumes WHERE id = ? AND user_profile_id = ?').run(req.params.id, user.id);
+      if (resume.is_selected === 1) {
+        const replacement = db
+          .prepare(
+            `SELECT id
+             FROM resumes
+             WHERE user_profile_id = ?
+             ORDER BY uploaded_at DESC
+             LIMIT 1`,
+          )
+          .get(user.id) as { id: string } | undefined;
+
+        if (replacement) {
+          db.prepare('UPDATE resumes SET is_selected = 1 WHERE id = ?').run(replacement.id);
+        }
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    fs.rmSync(resume.storage_path, { force: true });
     res.status(204).send();
   });
 
