@@ -16,7 +16,7 @@
     "express": "^4.21.2",
     "multer": "^2.0.2",
     "openai": "^5.10.2",
-    "playwright": "^1.53.2",
+    "playwright": "1.61.1",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0"
   },
