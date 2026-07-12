@@ -46,9 +46,39 @@ Free hosting is possible for demos, but this app has two requirements that many 
 
 `render.yaml` is included for a Docker web service preview. Render free web services are useful for testing, but free service filesystems are ephemeral. Without a paid persistent disk or external database/storage, SQLite and uploads can be lost on restart/redeploy.
 
+Quick Render demo deploy:
+
+1. Push this repo to GitHub.
+2. In Render, create a new Blueprint or Docker web service from the GitHub repo.
+3. Use the root `Dockerfile`.
+4. Add the required environment variables from this file.
+5. Deploy.
+6. Copy the Render URL, then update these variables:
+
+```bash
+FRONTEND_ORIGIN=https://<your-render-service>.onrender.com
+GOOGLE_REDIRECT_URI=https://<your-render-service>.onrender.com/api/auth/google/callback
+GOOGLE_EMAIL_REDIRECT_URI=https://<your-render-service>.onrender.com/api/email/google/callback
+```
+
+7. Add both callback URLs to Google Cloud OAuth.
+
+For real use, add persistent storage or move the database/uploads to managed services before storing production credentials or resumes.
+
 ### Railway
 
 Railway can run Docker services and has free/trial credits. Use a volume mounted at `/data` if you want SQLite/uploads to persist.
+
+Railway is the better free/trial path for a real personal test because it supports attached volumes:
+
+1. Create a Railway project from the GitHub repo.
+2. Railway should detect the `Dockerfile`.
+3. Add a volume mounted at `/data`.
+4. Set `DATABASE_PATH=/data/hireloop.sqlite`.
+5. Set `UPLOAD_DIR=/data/uploads`.
+6. Add the required secrets.
+7. Deploy and copy the generated Railway domain.
+8. Update Google OAuth redirect URLs to the Railway domain.
 
 ### Fly.io
 

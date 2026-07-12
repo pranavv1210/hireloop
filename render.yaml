@@ -4,11 +4,10 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 4000
       - key: DATABASE_PATH
         value: /data/hireloop.sqlite
       - key: UPLOAD_DIR
