@@ -15,19 +15,21 @@ Core automation behavior was not changed. The LinkedIn 15/day cap remains backen
 
 ## Design System
 
-The visual language is a dark liquid-glass interface with translucent panels and compact app controls.
+The visual language is Apple-inspired restraint: neutral surfaces, generous spacing, precise type, and one sparse accent color.
 
-- Fonts: `Sora` for headings/brand, `Inter` for body and UI.
-- Background: dark layered radial gradients over a subtle grid.
-- Accent colors:
-  - Primary teal: `#4dd4c6`
-  - Secondary periwinkle: `#7c8cff`
-  - Success: `#66e0a3`
-  - Warning: `#f5c56b`
-  - Danger: `#ff7a8a`
-- Radius: `8px` for cards, controls, panels, and app surfaces.
-- Glass panels: semi-transparent backgrounds with `backdrop-filter: blur(24px) saturate(145%)`.
-- Motion: quick fade/slide page transitions, hover lift on controls, loading skeletons, and spinner states.
+- Font: `Inter`, with Apple system font fallbacks (`-apple-system`, `BlinkMacSystemFont`, `SF Pro Text`).
+- Neutral palette:
+  - Light page: `#f5f5f7`
+  - Light surface: `#ffffff` / translucent white
+  - Dark mode page: `#000000`
+  - Dark mode surface: `#1c1c1e`
+  - Primary text: `#1d1d1f` in light mode, `#f5f5f7` in dark mode
+  - Muted text: `#6e6e73`
+- Single accent color: Apple-style blue `#0071e3`, used for primary actions, focus states, and selected highlights only.
+- Radius tokens: `14px` for panels/cards, `10px` for inputs, pill radius for buttons and segmented controls.
+- Shadows: quiet neutral shadows only, with no luminous decoration.
+- Blur/translucency: subtle frosted surfaces on nav and panels with `backdrop-filter: blur(18px) saturate(180%)`.
+- Motion: restrained fade/slide transitions, gentle hover lift, simple pulse skeletons, and a minimal spinner.
 
 The shared tokens live in `apps/frontend/src/styles.css`.
 

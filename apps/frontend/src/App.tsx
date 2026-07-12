@@ -492,7 +492,7 @@ function LandingPage({ authConfig, error }: { authConfig: AuthConfig | null; err
           </p>
           <div className="hero-actions">
             {authConfig?.googleConfigured ? (
-              <a className="primary-link glow" href={`${apiBaseUrl}/api/auth/google/start`}>
+              <a className="primary-link" href={`${apiBaseUrl}/api/auth/google/start`}>
                 Sign in with Google
               </a>
             ) : (
