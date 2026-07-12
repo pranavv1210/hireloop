@@ -6,6 +6,7 @@ import type { AppDatabase } from './db/database.js';
 const sessionCookieName = 'hl_session';
 const oauthStateCookieName = 'hl_oauth_state';
 const sessionDays = 14;
+const productionCookie = config.frontendOrigins.some((origin) => origin.startsWith('https://'));
 
 export type AuthenticatedRequest = Request & {
   user: {
@@ -75,29 +76,37 @@ export function destroySession(db: AppDatabase, token: string | undefined): void
 export function setSessionCookie(res: Response, token: string): void {
   res.cookie(sessionCookieName, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
+    sameSite: productionCookie ? 'none' : 'lax',
+    secure: productionCookie,
     maxAge: sessionDays * 24 * 60 * 60 * 1000,
     path: '/',
   });
 }
 
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(sessionCookieName, { path: '/' });
+  res.clearCookie(sessionCookieName, {
+    path: '/',
+    sameSite: productionCookie ? 'none' : 'lax',
+    secure: productionCookie,
+  });
 }
 
 export function setOauthStateCookie(res: Response, state: string): void {
   res.cookie(oauthStateCookieName, state, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
+    sameSite: productionCookie ? 'none' : 'lax',
+    secure: productionCookie,
     maxAge: 10 * 60 * 1000,
     path: '/',
   });
 }
 
 export function clearOauthStateCookie(res: Response): void {
-  res.clearCookie(oauthStateCookieName, { path: '/' });
+  res.clearCookie(oauthStateCookieName, {
+    path: '/',
+    sameSite: productionCookie ? 'none' : 'lax',
+    secure: productionCookie,
+  });
 }
 
 export function getSessionToken(req: Request): string | undefined {
