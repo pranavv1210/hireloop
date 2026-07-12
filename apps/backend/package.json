@@ -1,0 +1,35 @@
+{
+  "name": "@hireloop/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "multer": "^2.0.2",
+    "openai": "^5.10.2",
+    "playwright": "^1.53.2",
+    "pino": "^9.7.0",
+    "pino-http": "^10.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.16.3",
+    "eslint": "^9.31.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.36.0",
+    "vitest": "^3.2.4"
+  }
+}

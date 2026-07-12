@@ -1,0 +1,23 @@
+{
+  "name": "hireloop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HireLoop personal autonomous job application agent.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
+    "build": "npm run build -w apps/backend && npm run build -w apps/frontend",
+    "lint": "npm run lint -w apps/backend && npm run lint -w apps/frontend",
+    "format": "prettier --write .",
+    "test": "npm run test -w apps/backend && npm run test -w apps/frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.2"
+  }
+}
