@@ -31,6 +31,8 @@ type Resume = {
 type Application = {
   id: string;
   status: string;
+  outcome_status: string | null;
+  outcome_detected_at: string | null;
   source: string;
   title: string;
   company: string;
@@ -46,6 +48,25 @@ type Application = {
   match_score: number | null;
   match_rationale: string | null;
   match_model: string | null;
+};
+
+type EmailTrackingStatus = {
+  connected: boolean;
+  gmailEmail: string | null;
+  connectedAt: string | null;
+  lastSyncAt: string | null;
+  recentEvents: Array<{
+    id: string;
+    applicationId: string | null;
+    gmailMessageId: string;
+    fromEmail: string | null;
+    subject: string | null;
+    snippet: string | null;
+    detectedStatus: string;
+    confidence: number;
+    receivedAt: string | null;
+    createdAt: string;
+  }>;
 };
 
 type LinkedInStatus = {
@@ -78,6 +99,7 @@ export function App() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [linkedinStatus, setLinkedinStatus] = useState<LinkedInStatus | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailTrackingStatus | null>(null);
   const [linkedinEmail, setLinkedinEmail] = useState('');
   const [linkedinPassword, setLinkedinPassword] = useState('');
   const [maxApplications, setMaxApplications] = useState(5);
@@ -85,6 +107,7 @@ export function App() {
   const [nonLinkedInMaxApplications, setNonLinkedInMaxApplications] = useState(10);
   const [nonLinkedInDryRun, setNonLinkedInDryRun] = useState(true);
   const [runInProgress, setRunInProgress] = useState(false);
+  const [emailSyncInProgress, setEmailSyncInProgress] = useState(false);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [companyFilter, setCompanyFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -141,16 +164,18 @@ export function App() {
   }, []);
 
   async function loadAuthedData() {
-    const [profileResponse, resumeResponse, applicationResponse] = await Promise.all([
+    const [profileResponse, resumeResponse, applicationResponse, emailResponse] = await Promise.all([
       api<{ profile: Profile }>('/profile'),
       api<{ resumes: Resume[] }>('/resumes'),
       api<{ applications: Application[] }>('/applications'),
+      api<EmailTrackingStatus>('/email/status'),
     ]);
     const linkedinResponse = await api<LinkedInStatus>('/linkedin/status');
 
     setProfile(profileResponse.profile);
     setResumes(resumeResponse.resumes);
     setApplications(applicationResponse.applications);
+    setEmailStatus(emailResponse);
     setLinkedinStatus(linkedinResponse);
     setSelectedApplicationId(applicationResponse.applications[0]?.id ?? null);
   }
@@ -215,6 +240,7 @@ export function App() {
     setResumes([]);
     setApplications([]);
     setLinkedinStatus(null);
+    setEmailStatus(null);
   }
 
   async function saveLinkedInCredentials(event: FormEvent<HTMLFormElement>) {
@@ -301,6 +327,41 @@ export function App() {
     }
   }
 
+  async function syncEmailOutcomes() {
+    setNotice(null);
+    setError(null);
+    setEmailSyncInProgress(true);
+
+    try {
+      const response = await api<{
+        result: { scanned: number; detected: number; updatedApplications: number };
+        status: EmailTrackingStatus;
+      }>('/email/sync', { method: 'POST' });
+      setEmailStatus(response.status);
+      await loadAuthedData();
+      setNotice(
+        `Email sync complete: ${response.result.scanned} scanned, ${response.result.detected} outcomes detected, ${response.result.updatedApplications} applications updated.`,
+      );
+    } catch (err) {
+      setError(readError(err));
+    } finally {
+      setEmailSyncInProgress(false);
+    }
+  }
+
+  async function disconnectEmailTracking() {
+    setNotice(null);
+    setError(null);
+
+    try {
+      await api('/email/connection', { method: 'DELETE' });
+      setEmailStatus(await api<EmailTrackingStatus>('/email/status'));
+      setNotice('Gmail tracking disconnected.');
+    } catch (err) {
+      setError(readError(err));
+    }
+  }
+
   if (loading) {
     return <main className="app-shell">Loading HireLoop...</main>;
   }
@@ -309,7 +370,7 @@ export function App() {
     return (
       <main className="login-shell">
         <section className="login-panel">
-          <p className="eyebrow">HireLoop Phase 5</p>
+          <p className="eyebrow">HireLoop Phase 6</p>
           <h1>Set up your personal job application workspace</h1>
           <p className="summary">
             Sign in with Google to manage your resume library, answer profile, and application
@@ -337,7 +398,7 @@ export function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">HireLoop Phase 5</p>
+          <p className="eyebrow">HireLoop Phase 6</p>
           <h1>Agent dashboard</h1>
         </div>
         <div className="user-chip">
@@ -561,6 +622,61 @@ export function App() {
         </div>
       </section>
 
+      <section className="linkedin-panel">
+        <div>
+          <h2>Email outcome tracking</h2>
+          <p className="muted">
+            Gmail read-only sync detects viewed, rejected, assessment, and interview outcomes for
+            submitted applications.
+          </p>
+          {emailStatus?.connected ? (
+            <p className="muted">
+              Connected: {emailStatus.gmailEmail ?? 'Gmail'} / Last sync:{' '}
+              {emailStatus.lastSyncAt ? formatDate(emailStatus.lastSyncAt) : 'Never'}
+            </p>
+          ) : (
+            <div className="setup-warning">
+              Connect Gmail only if you want HireLoop to read recent job-response emails.
+            </div>
+          )}
+        </div>
+        <div className="run-controls">
+          {emailStatus?.connected ? (
+            <>
+              <button
+                disabled={emailSyncInProgress}
+                onClick={() => void syncEmailOutcomes()}
+                type="button"
+              >
+                {emailSyncInProgress ? 'Syncing...' : 'Sync outcomes'}
+              </button>
+              <button
+                className="secondary-button"
+                onClick={() => void disconnectEmailTracking()}
+                type="button"
+              >
+                Disconnect Gmail
+              </button>
+            </>
+          ) : (
+            <a className="primary-link" href={`${apiBaseUrl}/api/email/google/start`}>
+              Connect Gmail
+            </a>
+          )}
+        </div>
+        {emailStatus?.recentEvents.length ? (
+          <div className="event-list">
+            {emailStatus.recentEvents.slice(0, 5).map((event) => (
+              <div className="event-row" key={event.id}>
+                <strong>{event.detectedStatus}</strong>
+                <span>{event.subject ?? 'No subject'}</span>
+                <small>{event.fromEmail ?? 'Unknown sender'}</small>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
       <section className="dashboard-shell">
         <div className="application-list">
           <h2>Applications</h2>
@@ -641,6 +757,7 @@ export function App() {
                 <strong>{application.title}</strong>
                 <span>
                   {application.company} / {application.source} / {application.status}
+                  {application.outcome_status ? ` / ${application.outcome_status}` : ''}
                   {application.match_score !== null ? ` / ${application.match_score}% fit` : ''}
                 </span>
                 <small>{formatApplicationDate(application)}</small>
@@ -680,6 +797,12 @@ function ApplicationDetail({ application }: { application: Application }) {
       <dd>{formatApplicationDate(application)}</dd>
       <dt>Status</dt>
       <dd>{application.status}</dd>
+      <dt>Outcome</dt>
+      <dd>
+        {application.outcome_status
+          ? `${application.outcome_status} (${application.outcome_detected_at ? formatDate(application.outcome_detected_at) : 'date unknown'})`
+          : 'None detected'}
+      </dd>
       <dt>Source</dt>
       <dd>{application.source}</dd>
       <dt>Role type</dt>

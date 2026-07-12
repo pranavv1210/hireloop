@@ -22,7 +22,14 @@ import {
 } from './auth.js';
 import { config } from './config.js';
 import type { AppDatabase } from './db/database.js';
-import { buildGoogleAuthUrl, exchangeCodeForGoogleUser, type GoogleUserInfo } from './google.js';
+import {
+  buildGoogleAuthUrl,
+  buildGoogleEmailAuthUrl,
+  exchangeCodeForGoogleEmailConnection,
+  exchangeCodeForGoogleUser,
+  type GoogleUserInfo,
+} from './google.js';
+import { getEmailTrackingStatus, syncEmailOutcomes } from './emailTracking.js';
 import { getLinkedInDailyStatus, runLinkedInAgent } from './linkedin/automation.js';
 import { runNonLinkedInAgent } from './nonlinkedin/automation.js';
 import {
@@ -109,6 +116,67 @@ export function createApiRouter(db: AppDatabase): Router {
 
       clearOauthStateCookie(res);
       setSessionCookie(res, sessionToken);
+      res.redirect(config.frontendOrigin);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/email/google/start', requireAuth(db), (_req, res) => {
+    if (!googleAuthConfigured()) {
+      res.status(503).json({ error: 'Google OAuth is not configured' });
+      return;
+    }
+
+    if (!encryptionConfigured()) {
+      res.status(503).json({ error: 'LINKEDIN_CREDENTIAL_KEY is required to encrypt Gmail tokens' });
+      return;
+    }
+
+    const state = createSignedState();
+    setOauthStateCookie(res, state);
+    res.redirect(buildGoogleEmailAuthUrl(state));
+  });
+
+  router.get('/email/google/callback', async (req, res, next) => {
+    try {
+      const token = getSessionToken(req);
+      const sessionUser = token ? findUserBySession(db, token) : null;
+      const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+      const state = typeof req.query.state === 'string' ? req.query.state : undefined;
+      const cookieState = getOauthState(req);
+
+      if (!sessionUser) {
+        res.status(401).send('Sign in before connecting Gmail');
+        return;
+      }
+
+      if (!code || !state || state !== cookieState || !verifySignedState(state)) {
+        res.status(400).send('Invalid Gmail OAuth callback state');
+        return;
+      }
+
+      const { token: googleToken, user: googleUser } = await exchangeCodeForGoogleEmailConnection(code);
+      if (!googleToken.refresh_token) {
+        res.status(400).send('Google did not return a refresh token. Revoke access and try again.');
+        return;
+      }
+
+      db.prepare(
+        `INSERT INTO google_email_connections (
+          user_profile_id, encrypted_refresh_token_json, gmail_email
+        ) VALUES (?, ?, ?)
+        ON CONFLICT(user_profile_id) DO UPDATE SET
+          encrypted_refresh_token_json = excluded.encrypted_refresh_token_json,
+          gmail_email = excluded.gmail_email,
+          updated_at = CURRENT_TIMESTAMP`,
+      ).run(
+        sessionUser.user_profile_id,
+        encryptCredential(googleToken.refresh_token),
+        googleUser.email,
+      );
+
+      clearOauthStateCookie(res);
       res.redirect(config.frontendOrigin);
     } catch (error) {
       next(error);
@@ -267,6 +335,8 @@ export function createApiRouter(db: AppDatabase): Router {
         `SELECT
           applications.id,
           applications.status,
+          applications.outcome_status,
+          applications.outcome_detected_at,
           applications.source,
           applications.submitted_at,
           applications.skipped_at,
@@ -419,6 +489,27 @@ export function createApiRouter(db: AppDatabase): Router {
     } catch (error) {
       next(error);
     }
+  });
+
+  router.get('/email/status', requireAuth(db), (req, res) => {
+    const user = (req as AuthenticatedRequest).user;
+    res.json(getEmailTrackingStatus(db, user.id));
+  });
+
+  router.post('/email/sync', requireAuth(db), async (req, res, next) => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      const result = await syncEmailOutcomes(db, user.id);
+      res.json({ result, status: getEmailTrackingStatus(db, user.id) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete('/email/connection', requireAuth(db), (req, res) => {
+    const user = (req as AuthenticatedRequest).user;
+    db.prepare('DELETE FROM google_email_connections WHERE user_profile_id = ?').run(user.id);
+    res.status(204).send();
   });
 
   return router;

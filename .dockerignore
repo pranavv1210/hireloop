@@ -1,0 +1,10 @@
+node_modules
+dist
+apps/*/dist
+apps/frontend/tsconfig.tsbuildinfo
+.git
+.env
+apps/*/.env
+data
+uploads
+*.log

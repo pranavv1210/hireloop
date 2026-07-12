@@ -1,5 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import { pinoHttp } from 'pino-http';
 import { config } from './config.js';
 import { getDatabase } from './db/database.js';
@@ -18,6 +20,8 @@ const tables = [
   'linkedin_credentials',
   'linkedin_run_events',
   'company_research',
+  'google_email_connections',
+  'email_events',
 ] as const;
 
 export function createApp() {
@@ -47,6 +51,19 @@ export function createApp() {
   });
 
   app.use('/api', createApiRouter(db));
+
+  const frontendDist = path.resolve(import.meta.dirname, '../../frontend/dist');
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        next();
+        return;
+      }
+
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+  }
 
   app.use(
     (

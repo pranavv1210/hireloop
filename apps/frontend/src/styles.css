@@ -215,6 +215,25 @@ h2 {
   width: auto;
 }
 
+.event-list {
+  display: grid;
+  gap: 10px;
+}
+
+.event-row {
+  border: 1px solid #dce5ed;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.event-row span,
+.event-row small {
+  display: block;
+  margin-top: 4px;
+  color: #607080;
+}
+
 .upload-row {
   display: flex;
   gap: 10px;

@@ -39,6 +39,23 @@ function runMigrations(database: AppDatabase): void {
   }
 
   database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_profiles_google_sub ON user_profiles(google_sub)');
+
+  const applicationColumns = database.prepare('PRAGMA table_info(applications)').all() as Array<{
+    name: string;
+  }>;
+  const applicationColumnNames = new Set(applicationColumns.map((column) => column.name));
+
+  if (!applicationColumnNames.has('outcome_status')) {
+    database.exec('ALTER TABLE applications ADD COLUMN outcome_status TEXT');
+  }
+
+  if (!applicationColumnNames.has('outcome_detected_at')) {
+    database.exec('ALTER TABLE applications ADD COLUMN outcome_detected_at TEXT');
+  }
+
+  if (!applicationColumnNames.has('outcome_source_message_id')) {
+    database.exec('ALTER TABLE applications ADD COLUMN outcome_source_message_id TEXT');
+  }
 }
 
 export function closeDatabase(): void {

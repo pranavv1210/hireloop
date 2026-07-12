@@ -15,6 +15,8 @@ describe('database schema', () => {
       'linkedin_credentials',
       'linkedin_run_events',
       'company_research',
+      'google_email_connections',
+      'email_events',
     ]) {
       expect(schemaSql).toContain(`CREATE TABLE IF NOT EXISTS ${table}`);
     }

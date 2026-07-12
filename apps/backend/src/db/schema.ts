@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS applications (
   resume_id TEXT,
   source TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('submitted', 'skipped', 'failed')),
+  outcome_status TEXT,
+  outcome_detected_at TEXT,
+  outcome_source_message_id TEXT,
   submitted_at TEXT,
   skipped_at TEXT,
   skip_reason TEXT,
@@ -149,4 +152,36 @@ CREATE TABLE IF NOT EXISTS company_research (
   source_url TEXT,
   researched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS google_email_connections (
+  user_profile_id TEXT PRIMARY KEY,
+  encrypted_refresh_token_json TEXT NOT NULL,
+  gmail_email TEXT,
+  history_id TEXT,
+  connected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_sync_at TEXT,
+  FOREIGN KEY (user_profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS email_events (
+  id TEXT PRIMARY KEY,
+  user_profile_id TEXT NOT NULL,
+  application_id TEXT,
+  gmail_message_id TEXT NOT NULL,
+  thread_id TEXT,
+  from_email TEXT,
+  subject TEXT,
+  snippet TEXT,
+  detected_status TEXT NOT NULL,
+  confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+  received_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE SET NULL,
+  UNIQUE (user_profile_id, gmail_message_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_events_user_profile_id ON email_events(user_profile_id);
+CREATE INDEX IF NOT EXISTS idx_email_events_application_id ON email_events(application_id);
 `;

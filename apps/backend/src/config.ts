@@ -18,6 +18,8 @@ export const config = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
   googleRedirectUri:
     process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:4000/api/auth/google/callback',
+  googleEmailRedirectUri:
+    process.env.GOOGLE_EMAIL_REDIRECT_URI ?? 'http://localhost:4000/api/email/google/callback',
   uploadDir: path.resolve(backendRoot, process.env.UPLOAD_DIR ?? '../../uploads'),
   linkedinCredentialKey: process.env.LINKEDIN_CREDENTIAL_KEY ?? '',
   linkedinHeadless: (process.env.LINKEDIN_HEADLESS ?? 'true') !== 'false',
