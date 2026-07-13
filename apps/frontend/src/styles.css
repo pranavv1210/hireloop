@@ -35,6 +35,16 @@ body {
   color: var(--text);
 }
 
+#root,
+.landing-shell,
+.product-shell,
+.app-surface,
+.view-stack {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 button,
 input,
 select,
@@ -82,6 +92,8 @@ h2,
 h3,
 .brand {
   letter-spacing: -0.04em;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 h1 {
@@ -186,6 +198,7 @@ pre {
   align-items: center;
   justify-content: center;
   min-height: 44px;
+  min-width: 0;
   border-radius: 999px;
   font-weight: 700;
   white-space: nowrap;
@@ -242,6 +255,7 @@ pre {
   align-items: center;
   justify-content: space-between;
   max-width: var(--content);
+  width: 100%;
   margin: 0 auto;
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.78);
@@ -253,6 +267,7 @@ pre {
   align-items: center;
   gap: 12px;
   font-weight: 800;
+  min-width: 0;
 }
 
 .brand-mark {
@@ -392,11 +407,13 @@ pre {
   border-radius: 0;
   background: transparent;
   padding: 4px 28px 4px 0;
+  min-width: 0;
 }
 
 .nav-stack {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .nav-stack button {
@@ -446,6 +463,7 @@ pre {
 .view-stack {
   display: grid;
   gap: 34px;
+  width: 100%;
   max-width: 1280px;
   margin: 0 auto;
 }
@@ -471,12 +489,15 @@ pre {
   justify-content: space-between;
   gap: 20px;
   align-items: center;
+  min-width: 0;
 }
 
 .view-header h1 {
   margin-bottom: 0;
   color: var(--text);
   font-size: clamp(2.45rem, 5vw, 5rem);
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .stats-grid {
@@ -515,6 +536,7 @@ pre {
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 24px;
   align-items: center;
+  min-width: 0;
 }
 
 .setup-checks {
@@ -584,7 +606,7 @@ pre {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 36px;
   align-items: start;
 }
@@ -600,7 +622,7 @@ pre {
 
 .filters-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px 150px;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 150px) minmax(130px, 150px);
   gap: 12px;
   margin: 18px 0 4px;
 }
@@ -625,6 +647,7 @@ pre {
   color: var(--text);
   padding: 18px 0;
   text-align: left;
+  min-width: 0;
 }
 
 .application-row:hover,
@@ -722,11 +745,12 @@ pre {
   border-radius: 999px;
   background: transparent;
   padding: 4px;
+  min-width: 0;
 }
 
 .segmented-tabs button {
   flex: 1;
-  min-width: 126px;
+  min-width: 0;
   min-height: 44px;
   border-radius: 999px;
   background: transparent;
@@ -864,7 +888,7 @@ pre {
     top: 0;
     z-index: 10;
     height: auto;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     display: grid;
     align-items: center;
     gap: 16px;
@@ -878,9 +902,11 @@ pre {
   .nav-stack {
     display: flex;
     justify-content: center;
+    min-width: 0;
   }
 
   .nav-stack button {
+    flex: 1 1 0;
     text-align: center;
   }
 
@@ -944,6 +970,10 @@ pre {
   .upload-strip {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .view-header h1 {
+    flex-basis: auto;
   }
 
   .side-nav {

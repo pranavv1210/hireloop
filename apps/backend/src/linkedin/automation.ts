@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Page } from 'playwright';
 import { chromium } from 'playwright';
 import { config } from '../config.js';
@@ -13,6 +15,7 @@ import {
 import { logger } from '../logger.js';
 
 const linkedinDailyCap = 15;
+const loginTimeoutMs = 15000;
 
 type Credentials = {
   email: string;
@@ -48,6 +51,17 @@ type JobCandidate = {
   jobPostingId?: string;
   matchScore?: MatchScore;
 };
+
+class LinkedInLoginBlockedError extends Error {
+  constructor(
+    message: string,
+    public readonly eventType: string,
+    public readonly details: Record<string, unknown> = {},
+  ) {
+    super(message);
+    this.name = 'LinkedInLoginBlockedError';
+  }
+}
 
 type SubmittedAnswer = {
   question: string;
@@ -107,7 +121,7 @@ export async function runLinkedInAgent(
 
     browser = await chromium.launch({ headless: config.linkedinHeadless });
     const page = await browser.newPage();
-    await login(page, credentials);
+    await login(page, credentials, runId);
 
     const candidates = await collectCandidates(page);
     const prioritizedCandidates = await scoreAndPrioritizeCandidates(db, userProfileId, candidates);
@@ -160,30 +174,145 @@ export async function runLinkedInAgent(
       remainingToday: getLinkedInDailyStatus(db, userProfileId).remaining,
     };
   } catch (error) {
-    finishRun(db, runId, 'failed', error instanceof Error ? error.message : 'Unknown run error');
-    throw error;
+    const message = error instanceof Error ? error.message : 'Unknown run error';
+    if (error instanceof LinkedInLoginBlockedError) {
+      addRunEvent(db, runId, error.eventType, message, error.details);
+      if (resume) {
+        logSkippedApplication(db, userProfileId, resume.id, {
+          title: 'LinkedIn login blocked',
+          company: 'LinkedIn',
+          location: null,
+          url: 'https://www.linkedin.com/login',
+          sourceJobId: `login-blocked-${runId}`,
+          description: message,
+          roleCategory: 'Automation status',
+        }, message);
+      }
+    }
+
+    finishRun(db, runId, 'failed', message);
+    throw new Error(message);
   } finally {
     await browser?.close();
   }
 }
 
-async function login(page: Page, credentials: Credentials): Promise<void> {
+async function login(page: Page, credentials: Credentials, runId: string): Promise<void> {
   await page.goto('https://www.linkedin.com/login', { waitUntil: 'domcontentloaded' });
-  await page.fill('input#username', credentials.email);
-  await page.fill('input#password', credentials.password);
+  await dismissCookieBanner(page);
+
+  const username = page.locator('input#username, input[name="session_key"], input[autocomplete="username"]').first();
+  const password = page.locator('input#password, input[name="session_password"], input[autocomplete="current-password"]').first();
+
+  try {
+    await username.waitFor({ state: 'visible', timeout: loginTimeoutMs });
+    await password.waitFor({ state: 'visible', timeout: loginTimeoutMs });
+  } catch {
+    const diagnostic = await captureLoginDiagnostic(page, runId, 'username-field-missing');
+    const classification = classifyLinkedInLoginPage(diagnostic);
+    throw new LinkedInLoginBlockedError(classification.message, classification.eventType, diagnostic);
+  }
+
+  await username.fill(credentials.email);
+  await password.fill(credentials.password);
   await Promise.all([
     page.waitForLoadState('domcontentloaded'),
     page.click('button[type="submit"]'),
   ]);
 
-  if (page.url().includes('/checkpoint/') || (await page.locator('input#input__email_verification_pin').count())) {
-    throw new Error('LinkedIn requires additional verification; run skipped');
+  await page.waitForTimeout(1500);
+  const diagnostic = await readLoginDiagnostic(page);
+  const classification = classifyLinkedInLoginPage(diagnostic);
+  if (classification.eventType === 'linkedin_verification_required') {
+    const withScreenshot = await captureLoginDiagnostic(page, runId, 'verification-required');
+    throw new LinkedInLoginBlockedError(classification.message, classification.eventType, withScreenshot);
   }
 
-  await page.waitForTimeout(1500);
   if (page.url().includes('/login')) {
-    throw new Error('LinkedIn login failed');
+    const withScreenshot = await captureLoginDiagnostic(page, runId, 'login-failed');
+    throw new LinkedInLoginBlockedError(
+      'LinkedIn login failed. Check that the saved LinkedIn email and password are correct.',
+      'linkedin_login_failed',
+      withScreenshot,
+    );
   }
+}
+
+async function dismissCookieBanner(page: Page): Promise<void> {
+  const cookieButtons = page
+    .locator(
+      'button:has-text("Accept"), button:has-text("Agree"), button:has-text("Allow"), button:has-text("Reject optional")',
+    );
+  const count = Math.min(await cookieButtons.count().catch(() => 0), 4);
+  for (let index = 0; index < count; index += 1) {
+    const button = cookieButtons.nth(index);
+    if (await button.isVisible().catch(() => false)) {
+      await button.click().catch(() => undefined);
+      await page.waitForTimeout(500);
+      return;
+    }
+  }
+}
+
+async function readLoginDiagnostic(page: Page): Promise<Record<string, unknown>> {
+  const bodyText = cleanText((await page.locator('body').textContent().catch(() => '')) ?? '').slice(0, 1200);
+  return {
+    url: page.url(),
+    title: await page.title().catch(() => ''),
+    bodyText,
+  };
+}
+
+async function captureLoginDiagnostic(
+  page: Page,
+  runId: string,
+  reason: string,
+): Promise<Record<string, unknown>> {
+  const diagnostic = await readLoginDiagnostic(page);
+  const debugDir = path.resolve(config.uploadDir, 'debug');
+  fs.mkdirSync(debugDir, { recursive: true });
+  const screenshotPath = path.join(debugDir, `linkedin-login-${runId}-${reason}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => undefined);
+  logger.warn({ ...diagnostic, screenshotPath, reason }, 'LinkedIn login diagnostic captured');
+  return { ...diagnostic, screenshotPath, reason };
+}
+
+function classifyLinkedInLoginPage(diagnostic: Record<string, unknown>): {
+  eventType: string;
+  message: string;
+} {
+  const url = String(diagnostic.url ?? '').toLowerCase();
+  const title = String(diagnostic.title ?? '').toLowerCase();
+  const bodyText = String(diagnostic.bodyText ?? '').toLowerCase();
+  const combined = `${url} ${title} ${bodyText}`;
+
+  if (
+    url.includes('/checkpoint/') ||
+    combined.includes('security verification') ||
+    combined.includes('captcha') ||
+    combined.includes('verify') ||
+    combined.includes('confirm it') ||
+    combined.includes('verification code')
+  ) {
+    return {
+      eventType: 'linkedin_verification_required',
+      message:
+        'LinkedIn requested additional verification for this login attempt. HireLoop cannot bypass CAPTCHA, checkpoint, or verification screens; log into LinkedIn manually and try again.',
+    };
+  }
+
+  if (combined.includes('cookie') || combined.includes('privacy')) {
+    return {
+      eventType: 'linkedin_cookie_or_consent_blocked',
+      message: 'LinkedIn login form did not become available because a consent or privacy screen blocked it.',
+    };
+  }
+
+  return {
+    eventType: 'linkedin_login_form_missing',
+    message:
+      'LinkedIn login page did not show the expected username/password fields. A diagnostic screenshot was captured for review.',
+  };
 }
 
 async function collectCandidates(page: Page): Promise<JobCandidate[]> {

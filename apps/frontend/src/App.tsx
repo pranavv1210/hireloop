@@ -305,6 +305,7 @@ export function App() {
         `LinkedIn run complete: ${response.result.submitted} submitted, ${response.result.skipped} skipped, ${response.result.remainingToday} remaining today.`,
       );
     } catch (err) {
+      await loadAuthedData().catch(() => undefined);
       setError(readError(err));
     } finally {
       setRunInProgress(false);
