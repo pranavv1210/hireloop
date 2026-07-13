@@ -505,29 +505,6 @@ function LandingPage({ authConfig, error }: { authConfig: AuthConfig | null; err
           </div>
           {error ? <div className="inline-error">{error}</div> : null}
         </div>
-        <div className="hero-preview glass">
-          <div className="preview-header">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="agent-pulse">
-            <strong>Loop running</strong>
-            <p>Finding remote AI, data, and full-stack roles across India.</p>
-          </div>
-          <div className="preview-row">
-            <span>LinkedIn cap</span>
-            <strong>15/day</strong>
-          </div>
-          <div className="preview-row">
-            <span>Answers logged</span>
-            <strong>Exact text</strong>
-          </div>
-          <div className="preview-row">
-            <span>Skipped forms</span>
-            <strong>Flagged</strong>
-          </div>
-        </div>
       </section>
       <section className="landing-section" id="how-it-works">
         <SectionHeading eyebrow="Setup in minutes" title="A simple loop from profile to applications." />

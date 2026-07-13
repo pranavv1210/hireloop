@@ -390,28 +390,33 @@ pre {
 
 .product-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 36px;
-  padding: 28px;
+  grid-template-columns: 1fr;
+  gap: 48px;
+  padding: 22px clamp(18px, 4vw, 56px) 72px;
 }
 
 .side-nav {
   position: sticky;
-  top: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  height: calc(100vh - 56px);
-  border: 0;
-  border-right: 1px solid var(--line-soft);
-  border-radius: 0;
-  background: transparent;
-  padding: 4px 28px 4px 0;
+  top: 16px;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  width: min(var(--content), 100%);
+  height: auto;
+  margin: 0 auto;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 10px 12px;
+  backdrop-filter: blur(18px) saturate(160%);
   min-width: 0;
 }
 
 .nav-stack {
-  display: grid;
+  display: flex;
+  justify-content: center;
   gap: 4px;
   min-width: 0;
 }
@@ -421,8 +426,8 @@ pre {
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  padding: 10px 16px;
-  text-align: left;
+  padding: 10px 22px;
+  text-align: center;
   font-weight: 750;
 }
 
@@ -437,7 +442,7 @@ pre {
   grid-template-columns: 40px minmax(0, 1fr);
   gap: 11px;
   align-items: center;
-  margin-top: auto;
+  margin-top: 0;
 }
 
 .nav-user img,
@@ -458,6 +463,8 @@ pre {
 
 .app-surface {
   min-width: 0;
+  width: min(1280px, 100%);
+  margin: 0 auto;
 }
 
 .view-stack {
@@ -979,6 +986,7 @@ pre {
 
   .side-nav {
     grid-template-columns: 1fr;
+    border-radius: var(--radius);
   }
 
   .side-nav .secondary-button {
