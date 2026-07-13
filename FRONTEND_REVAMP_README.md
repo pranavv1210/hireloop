@@ -10,12 +10,14 @@ This pass turns the frontend into a polished app experience:
 - Dashboard with lightweight stats, LinkedIn/external run controls, filters, application list, and exact-answer detail view.
 - Settings split into Q&A Profile, Resume Library, Credentials, and Preferences.
 - Resume delete support added through a small backend endpoint.
+- Minimal mobile-responsive pass for landing, dashboard, and settings at 375px, 414px, and 768px.
+- Render persistence configuration for `/data`, which is required for Q&A profile and resume data to survive restarts/redeploys.
 
 Core automation behavior was not changed. The LinkedIn 15/day cap remains backend-enforced, and non-LinkedIn skip-and-flag behavior remains intact.
 
 ## Design System
 
-The visual language is Apple-inspired restraint: neutral surfaces, generous spacing, precise type, and one sparse accent color.
+The visual language is stricter Apple-inspired restraint: neutral surfaces, generous spacing, precise type, and one sparse accent color.
 
 - Font: `Inter`, with Apple system font fallbacks (`-apple-system`, `BlinkMacSystemFont`, `SF Pro Text`).
 - Neutral palette:
@@ -27,9 +29,11 @@ The visual language is Apple-inspired restraint: neutral surfaces, generous spac
   - Muted text: `#6e6e73`
 - Single accent color: Apple-style blue `#0071e3`, used for primary actions, focus states, and selected highlights only.
 - Radius tokens: `14px` for panels/cards, `10px` for inputs, pill radius for buttons and segmented controls.
-- Shadows: quiet neutral shadows only, with no luminous decoration.
-- Blur/translucency: subtle frosted surfaces on nav and panels with `backdrop-filter: blur(18px) saturate(180%)`.
+- Shadows: removed from the main UI; separation is handled with whitespace and thin dividers.
+- Blur/translucency: limited to sticky navigation/toasts; content surfaces are plain neutral sections.
 - Motion: restrained fade/slide transitions, gentle hover lift, simple pulse skeletons, and a minimal spinner.
+
+The latest pass intentionally removes the decorative dashboard preview, dark-mode override, boxed stat cards, heavy glass panels, and colored status treatments.
 
 The shared tokens live in `apps/frontend/src/styles.css`.
 
@@ -38,6 +42,17 @@ The shared tokens live in `apps/frontend/src/styles.css`.
 `DELETE /api/resumes/:id`
 
 Deletes a resume owned by the authenticated user, removes the stored file, and if the deleted resume was selected, promotes the newest remaining resume as the default.
+
+## Persistence Fix
+
+The Q&A profile save path was audited:
+
+- Cross-domain cookies are configured as `SameSite=None; Secure` when deployed with an HTTPS frontend.
+- CORS is credentialed and checks exact allowed frontend origins.
+- Frontend API calls use `credentials: 'include'`.
+- Google login upserts users by stable `google_sub` or email, avoiding duplicate profile rows for the same Google account.
+
+The remaining root cause is deployment storage: SQLite and uploads are stored under `/data`, which only persists on Render when a persistent disk is attached at `/data`. `render.yaml` now declares a `hireloop-data` disk mounted at `/data`. Render free web services cannot attach persistent disks, so durable Q&A/resume persistence requires a paid Render service with the disk attached, or a migration to managed database/storage.
 
 ## Environment Notes
 
@@ -72,7 +87,13 @@ npm run test --prefix apps/backend
 npm run build --prefix apps/backend
 ```
 
-All checks passed during this revamp.
+Additional responsive audit:
+
+- Landing, Dashboard, and Settings were checked with Playwright at 375px, 414px, and 768px.
+- No horizontal overflow was detected in those viewports.
+- Screenshots were inspected for mobile contrast, spacing, and touch target issues.
+
+All listed frontend checks and backend tests passed during this revamp.
 
 ## Known Limitations
 

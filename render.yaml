@@ -2,9 +2,13 @@ services:
   - type: web
     name: hireloop
     runtime: docker
-    plan: free
+    plan: starter
     autoDeploy: true
     healthCheckPath: /api/health
+    disk:
+      name: hireloop-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production

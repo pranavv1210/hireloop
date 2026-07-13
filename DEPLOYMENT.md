@@ -110,7 +110,14 @@ Free hosting is possible for demos, but this app has two requirements that many 
 
 ### Render
 
-`render.yaml` is included for a Docker web service preview. Render free web services are useful for testing, but free service filesystems are ephemeral. Without a paid persistent disk or external database/storage, SQLite and uploads can be lost on restart/redeploy.
+`render.yaml` is included for a Docker web service with `/data` configured as the persistent disk mount. This requires a paid Render web service; Render free web services have an ephemeral filesystem and cannot attach persistent disks. This is required because HireLoop stores SQLite data and uploaded resumes at:
+
+```bash
+DATABASE_PATH=/data/hireloop.sqlite
+UPLOAD_DIR=/data/uploads
+```
+
+Render only preserves files written under an attached persistent disk mount path; the rest of the service filesystem is ephemeral. Without the `/data` disk, saved Q&A profile data, resumes, sessions, credentials, and application logs can disappear after restart/redeploy.
 
 Quick Render demo deploy:
 
@@ -118,8 +125,9 @@ Quick Render demo deploy:
 2. In Render, create a new Blueprint or Docker web service from the GitHub repo.
 3. Use the root `Dockerfile`.
 4. Add the required environment variables from this file.
-5. Deploy.
-6. Copy the Render URL, then update these variables:
+5. Confirm a persistent disk is attached with mount path `/data`.
+6. Deploy.
+7. Copy the Render URL, then update these variables:
 
 ```bash
 FRONTEND_ORIGIN=https://<your-render-service>.onrender.com
@@ -127,9 +135,9 @@ GOOGLE_REDIRECT_URI=https://<your-render-service>.onrender.com/api/auth/google/c
 GOOGLE_EMAIL_REDIRECT_URI=https://<your-render-service>.onrender.com/api/email/google/callback
 ```
 
-7. Add both callback URLs to Google Cloud OAuth.
+8. Add both callback URLs to Google Cloud OAuth.
 
-For real use, add persistent storage or move the database/uploads to managed services before storing production credentials or resumes.
+Before storing real data, save a Q&A profile and upload a resume, restart the Render service, then confirm both remain available. If they disappear, the `/data` disk is not attached to the running service.
 
 ### Railway
 
