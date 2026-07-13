@@ -723,5 +723,16 @@ function inferRoleCategory(value: string): string {
     return 'Full-Stack';
   }
 
-  return 'ML/AI Engineering';
+  if (
+    normalized.includes('machine learning') ||
+    normalized.includes('ml engineer') ||
+    normalized.includes(' ai ') ||
+    normalized.includes('artificial intelligence') ||
+    normalized.includes('python') ||
+    normalized.includes('llm')
+  ) {
+    return 'ML/AI Engineering';
+  }
+
+  return 'Unclassified';
 }

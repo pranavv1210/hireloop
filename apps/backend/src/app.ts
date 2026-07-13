@@ -66,6 +66,14 @@ export function createApp() {
 
   const frontendDist = path.resolve(import.meta.dirname, '../../frontend/dist');
   if (fs.existsSync(frontendDist)) {
+    app.get('/', (_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      next();
+    });
+    app.get('/index.html', (_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      next();
+    });
     app.use(express.static(frontendDist));
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api')) {

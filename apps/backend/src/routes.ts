@@ -15,6 +15,7 @@ import {
   getOauthState,
   getSessionToken,
   googleAuthConfigured,
+  refreshSession,
   requireAuth,
   setOauthStateCookie,
   setSessionCookie,
@@ -86,7 +87,7 @@ export function createApiRouter(db: AppDatabase): Router {
   });
 
   router.get('/auth/config', (_req, res) => {
-    res.json({ googleConfigured: googleAuthConfigured() });
+    res.json({ googleConfigured: googleAuthConfigured(), openaiConfigured: Boolean(config.openaiApiKey) });
   });
 
   router.get('/auth/google/start', (_req, res) => {
@@ -187,6 +188,9 @@ export function createApiRouter(db: AppDatabase): Router {
   router.get('/me', (req, res) => {
     const token = getSessionToken(req);
     const user = token ? findUserBySession(db, token) : null;
+    if (token && user) {
+      refreshSession(db, token, res);
+    }
 
     res.json({
       user: user
@@ -419,6 +423,39 @@ export function createApiRouter(db: AppDatabase): Router {
       .all(user.id);
 
     res.json({ applications });
+  });
+
+  router.get('/applications/skip-summary', requireAuth(db), (req, res) => {
+    const user = (req as AuthenticatedRequest).user;
+    const rows = db
+      .prepare(
+        `SELECT skip_reason, COUNT(*) AS count
+         FROM applications
+         WHERE user_profile_id = ?
+           AND source != 'linkedin'
+           AND status = 'skipped'
+         GROUP BY skip_reason
+         ORDER BY count DESC`,
+      )
+      .all(user.id) as Array<{ skip_reason: string | null; count: number }>;
+
+    const totalSkipped = rows.reduce((sum, row) => sum + row.count, 0);
+    const unsupportedHostRows = rows.filter((row) =>
+      (row.skip_reason ?? '').startsWith('Unsupported or unrecognized application host:'),
+    );
+    const unsupportedHostCount = unsupportedHostRows.reduce((sum, row) => sum + row.count, 0);
+    const unsupportedHosts = unsupportedHostRows.map((row) => ({
+      host: (row.skip_reason ?? '').replace('Unsupported or unrecognized application host:', '').trim(),
+      count: row.count,
+    }));
+
+    res.json({
+      totalSkipped,
+      unsupportedHostCount,
+      unsupportedHostRate: totalSkipped > 0 ? unsupportedHostCount / totalSkipped : 0,
+      unsupportedHosts,
+      reasons: rows.map((row) => ({ reason: row.skip_reason ?? 'Unknown', count: row.count })),
+    });
   });
 
   router.get('/linkedin/status', requireAuth(db), (req, res) => {

@@ -94,19 +94,26 @@ export async function runNonLinkedInAgent(
     const page = await browser.newPage();
 
     for (const candidate of prioritized.slice(0, maxApplications)) {
-      const result = await applyToExternalJob(
-        db,
-        page,
-        userProfileId,
-        resume,
-        candidate,
-        Boolean(options.dryRun),
-      );
+      try {
+        const result = await applyToExternalJob(
+          db,
+          page,
+          userProfileId,
+          resume,
+          candidate,
+          Boolean(options.dryRun),
+        );
 
-      if (result === 'submitted') {
-        submitted += 1;
-      } else {
+        if (result === 'submitted') {
+          submitted += 1;
+        } else {
+          skipped += 1;
+        }
+      } catch (error) {
         skipped += 1;
+        logApplication(db, userProfileId, resume.id, candidate, 'skipped', {
+          skipReason: error instanceof Error ? error.message : 'Unknown external application error',
+        });
       }
     }
 
@@ -486,7 +493,18 @@ function inferRoleCategory(value: string): string {
     return 'Full-Stack';
   }
 
-  return 'ML/AI Engineering';
+  if (
+    normalized.includes('machine learning') ||
+    normalized.includes('ml engineer') ||
+    normalized.includes(' ai ') ||
+    normalized.includes('artificial intelligence') ||
+    normalized.includes('python') ||
+    normalized.includes('llm')
+  ) {
+    return 'ML/AI Engineering';
+  }
+
+  return 'Unclassified';
 }
 
 function stripHtml(value: string): string {

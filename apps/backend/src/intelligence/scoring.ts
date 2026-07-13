@@ -85,48 +85,99 @@ export function persistMatchScore(
 }
 
 function fallbackScore(profile: ProfileContext, job: ScoringJob): MatchScore {
-  const haystack = [
+  const jobText = [
     job.title,
     job.description,
     job.roleCategory,
-    profile.career_goals,
-    profile.strengths,
-    profile.additional_context,
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+  const profileText = [profile.career_goals, profile.strengths, profile.additional_context]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
-  let score = 45;
-  const boosts = [
-    ['machine learning', 12],
-    ['ml ', 8],
-    ['ai', 8],
-    ['data scientist', 12],
-    ['data science', 10],
-    ['generative', 10],
-    ['gen-ai', 10],
-    ['full stack', 10],
-    ['full-stack', 10],
-    ['remote', 8],
-    ['india', 5],
-    ['python', 5],
-    ['react', 4],
-    ['node', 4],
-  ] as const;
+  const technicalTerms = countMatches(jobText, [
+    'machine learning',
+    'deep learning',
+    'artificial intelligence',
+    'data scientist',
+    'data science',
+    'generative ai',
+    'gen-ai',
+    'llm',
+    'python',
+    'pytorch',
+    'tensorflow',
+    'model',
+    'mlops',
+    'computer vision',
+    'nlp',
+    'full stack',
+    'full-stack',
+    'react',
+    'node',
+    'typescript',
+    'javascript',
+    'backend',
+    'frontend',
+    'software engineer',
+  ]);
+  const logisticsTerms = countMatches(jobText, ['remote', 'india', 'asia', 'worldwide', 'anywhere']);
+  const unrelatedTerms = countMatches(jobText, [
+    'high-ticket',
+    'sales',
+    'closer',
+    'lead generation',
+    'cold call',
+    'commission',
+    'insurance',
+    'financial advisor',
+    'financial sales',
+    'real estate',
+    'hospitality',
+    'restaurant',
+    'retail',
+    'customer support',
+    'telemarketing',
+  ]);
+  const profileOverlap = countMatches(jobText, profileText.split(/\W+/).filter((word) => word.length > 4));
 
-  for (const [term, boost] of boosts) {
-    if (haystack.includes(term)) {
-      score += boost;
-    }
+  let score = 25 + technicalTerms * 10 + Math.min(logisticsTerms * 3, 8) + Math.min(profileOverlap, 8);
+
+  if (technicalTerms === 0) {
+    score = Math.min(score, 38);
   }
+
+  if (unrelatedTerms >= 2 && technicalTerms === 0) {
+    score = Math.min(score, 18);
+  } else if (unrelatedTerms > technicalTerms) {
+    score -= Math.min(30, unrelatedTerms * 8);
+  }
+
+  const rationale =
+    technicalTerms === 0
+      ? 'Fallback score found no substantive ML/AI, data science, or full-stack role signals; logistics words alone were not treated as a strong match.'
+      : `Fallback score used ${technicalTerms} substantive technical signal(s), ${logisticsTerms} logistics signal(s), and ${unrelatedTerms} unrelated-domain signal(s).`;
 
   return {
     score: clampScore(score),
-    rationale:
-      'Fallback score based on role keywords, remote/India signals, and overlap with profile context.',
+    rationale,
     modelName: 'heuristic-fallback',
   };
+}
+
+function countMatches(haystack: string, terms: string[]): number {
+  const seen = new Set<string>();
+  for (const term of terms) {
+    const normalized = term.toLowerCase().trim();
+    if (normalized && haystack.includes(normalized)) {
+      seen.add(normalized);
+    }
+  }
+
+  return seen.size;
 }
 
 function clampScore(value: number): number {

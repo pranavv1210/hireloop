@@ -5,7 +5,7 @@ import type { AppDatabase } from './db/database.js';
 
 const sessionCookieName = 'hl_session';
 const oauthStateCookieName = 'hl_oauth_state';
-const sessionDays = 14;
+const sessionDays = 90;
 const productionCookie = config.frontendOrigins.some((origin) => origin.startsWith('https://'));
 
 export type AuthenticatedRequest = Request & {
@@ -122,7 +122,7 @@ export function requireAuth(db: AppDatabase) {
     const token = getSessionToken(req);
     const user = token ? findUserBySession(db, token) : null;
 
-    if (!user) {
+    if (!token || !user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
@@ -133,6 +133,7 @@ export function requireAuth(db: AppDatabase) {
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
     };
+    refreshSession(db, token, res);
     next();
   };
 }
@@ -152,6 +153,15 @@ export function findUserBySession(db: AppDatabase, token: string): SessionRow | 
     .get(hashToken(token)) as SessionRow | undefined;
 
   return row ?? null;
+}
+
+export function refreshSession(db: AppDatabase, token: string, res: Response): void {
+  const expiresAt = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000).toISOString();
+  db.prepare('UPDATE auth_sessions SET expires_at = ? WHERE token_hash = ?').run(
+    expiresAt,
+    hashToken(token),
+  );
+  setSessionCookie(res, token);
 }
 
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
